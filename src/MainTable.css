@@ -93,3 +93,12 @@ select:focus, input:focus, button:focus{
   outline-offset: 2px;
 }
 
+/* sortable header affordance */
+.sortable{display:flex;align-items:center;justify-content:flex-end;gap:8px;cursor:pointer}
+.sortable span{display:inline-block}
+.sort-indicator{opacity:0.28;font-size:0.85em;color:#0f172a;transition:opacity 160ms, transform 160ms}
+.sortable:focus .sort-indicator,
+.sortable:hover .sort-indicator{opacity:0.9;transform:translateY(-1px)}
+.sort-indicator.active{opacity:1;font-weight:700}
+
+

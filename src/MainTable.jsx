@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import jsonData from "./assets/jsonData"
 import "./MainTable.css"
 
@@ -10,6 +10,9 @@ const MainTable = () => {
     const pageSize = 10
 
     
+    const [sortBy, setSortBy] = useState(null)
+    const [sortDir, setSortDir] = useState('desc')
+
     const channels = useMemo(() => {
         const set = new Set(jsonData.map(d => d.channel))
         return ['All', ...Array.from(set)]
@@ -32,29 +35,55 @@ const MainTable = () => {
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize))
 
+    // clamp current page when filters change
+    useEffect(() => {
+        if (currentPage > totalPages) setCurrentPage(totalPages)
+    }, [totalPages])
 
-    if (currentPage > totalPages) setCurrentPage(totalPages)
+    const sortedData = useMemo(() => {
+        if (!sortBy) return filteredData
+        const copy = [...filteredData]
+        copy.sort((a, b) => {
+            const aVal = a[sortBy]
+            const bVal = b[sortBy]
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+            }
+            return sortDir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal))
+        })
+        return copy
+    }, [filteredData, sortBy, sortDir])
 
     const displayData = useMemo(() => {
         const start = (currentPage - 1) * pageSize
         const end = start + pageSize
-        return filteredData.slice(start, end)
-    }, [filteredData, currentPage])
+        return sortedData.slice(start, end)
+    }, [sortedData, currentPage])
 
-    const goPrev = () => setCurrentPage(p => Math.max(1, p - 1))
-    const goNext = () => setCurrentPage(p => Math.min(totalPages, p + 1))
-    const goto = (n) => setCurrentPage(() => Math.min(Math.max(1, n), totalPages))
+    const goPrev = useCallback(() => setCurrentPage(p => Math.max(1, p - 1)), [])
+    const goNext = useCallback(() => setCurrentPage(p => Math.min(totalPages, p + 1)), [totalPages])
+    const goto = useCallback((n) => setCurrentPage(() => Math.min(Math.max(1, n), totalPages)), [totalPages])
 
-    const onChannelChange = (val) => {
+    const onChannelChange = useCallback((val) => {
         setSelectedChannel(val)
         setSelectedRegion('All')
         setCurrentPage(1)
-    }
+    }, [])
 
-    const onRegionChange = (val) => {
+    const onRegionChange = useCallback((val) => {
         setSelectedRegion(val)
         setCurrentPage(1)
-    }
+    }, [])
+
+    const toggleSort = useCallback((field) => {
+        if (sortBy === field) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortBy(field)
+            setSortDir('desc')
+        }
+        setCurrentPage(1)
+    }, [sortBy])
 
     return (
         <div className="mt-container">
@@ -88,7 +117,19 @@ const MainTable = () => {
                             <th>ID</th>
                             <th>Channel</th>
                             <th>Region</th>
-                            <th className="num">Spend</th>
+                            <th
+                                className="num sortable"
+                                role="button"
+                                tabIndex={0}
+                                aria-sort={sortBy === 'spend' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                onClick={() => toggleSort('spend')}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('spend') } }}
+                            >
+                                <span>Spend</span>
+                                <span className={`sort-indicator ${sortBy === 'spend' ? 'active' : ''}`}>
+                                    {sortBy === 'spend' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                                </span>
+                            </th>
                             <th className="num">Impressions</th>
                             <th className="num">Clicks</th>
                             <th className="num">Conversions</th>
